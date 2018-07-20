@@ -109,17 +109,17 @@ trait HttpMessageDecoder { self: FastArrayBuilding =>
 }
 
 class HttpServerCodec(
-  onDecode: BasicHttpRequest => Unit,
+  onDecode: HttpRequest => Unit,
   timeKeeper: TimeKeeper,
   commonHeaders: Array[Header]
 ) 
-extends Codec[BasicHttpRequest, BasicHttpResponse] with HttpMessageDecoder with FastArrayBuilding {
+extends Codec[HttpRequest, HttpResponse] with HttpMessageDecoder with FastArrayBuilding {
 
   def finishDecode(firstLine: Array[Byte], headers: LinkedList[Header], body: Array[Byte]) {
-    onDecode(BasicHttpRequest(firstLine, headers, body))
+    onDecode(new ParsedHttpRequest(firstLine, headers, Body(body, None)))
   }
 
-  def encode(message: BasicHttpResponse, buffer: WriteBuffer) {
+  def encode(message: HttpResponse, buffer: WriteBuffer) {
     buffer.write(message.code.v1FirstLine)
     buffer.write(ContentLengthPrefix)
     buffer.write(message.body.data.length)
@@ -127,12 +127,56 @@ extends Codec[BasicHttpRequest, BasicHttpResponse] with HttpMessageDecoder with 
     if (message.body.contentType.isDefined) {
       buffer.write(message.body.contentType.get.header.encodedLine(timeKeeper))
     }
+
+    val h = message.headers.listIterator(0)
+    while (h.hasNext) {
+      buffer.write(h.next.encodedLine(timeKeeper))
+    }
+
     var i = 0
-    while (i < message.headers.length) {
-      buffer.write(message.headers(i).encodedLine(timeKeeper))
+    while (i < commonHeaders.length) {
+      buffer.write(commonHeaders(i).encodedLine(timeKeeper))
       i += 1
     }
-    i = 0
+    buffer.write(Newline)
+    buffer.write(message.body.data)
+  }
+
+
+}
+
+class HttpClientCodec(
+  onDecode: HttpResponse => Unit,
+  timeKeeper: TimeKeeper,
+  commonHeaders: Array[Header]
+) 
+extends Codec[HttpResponse, HttpRequest] with HttpMessageDecoder with FastArrayBuilding {
+
+  def finishDecode(firstLine: Array[Byte], headers: LinkedList[Header], body: Array[Byte]) {
+    onDecode(new ParsedHttpResponse(firstLine, headers, Body(body, None)))
+  }
+
+  def encode(message: HttpRequest, buffer: WriteBuffer) {
+    buffer.write(message.method.bytes)
+    buffer.write(SPACE_BYTE)
+    buffer.write(message.urlBytes)
+    buffer.write(SPACE_BYTE)
+    buffer.write(message.version.bytes)
+    buffer.write(Newline)
+    //content length
+    buffer.write(ContentLengthPrefix)
+    buffer.write(message.body.data.length)
+    buffer.write(Newline)
+    if (message.body.contentType.isDefined) {
+      buffer.write(message.body.contentType.get.header.encodedLine(timeKeeper))
+    }
+
+    val h = message.headers.listIterator(0)
+    while (h.hasNext) {
+      buffer.write(h.next.encodedLine(timeKeeper))
+    }
+
+    var i = 0
     while (i < commonHeaders.length) {
       buffer.write(commonHeaders(i).encodedLine(timeKeeper))
       i += 1

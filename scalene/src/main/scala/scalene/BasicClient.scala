@@ -1,9 +1,11 @@
 package scalene
 
+import java.net.InetSocketAddress
 import java.util.LinkedList
 import scala.concurrent.duration._
 
 case class BasicClientConfig(
+  address: InetSocketAddress,
   maxInFlightRequests: Int,
   maxPendingRequests: Int,
   pendingTimeout: Duration,
