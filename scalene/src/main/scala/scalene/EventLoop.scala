@@ -79,8 +79,8 @@ class EventLoop(
     }
   })
 
-  private def attachInternal(channel: SocketChannel, handler: ConnectionHandler, immediatelyConnected: Boolean): Unit = {
-    val key = channel.register(selector, SelectionKey.OP_READ)
+  private def attachInternal(channel: SocketChannel, handler: ConnectionHandler, immediatelyConnected: Boolean, keyInterest: Int): Unit = {
+    val key = channel.register(selector, keyInterest)
     val handle = new LiveChannelHandle(channel, key, timeKeeper)
     val manager = new ConnectionManager(nextId(), handler, handle)
     key.attach(manager)
@@ -92,18 +92,23 @@ class EventLoop(
 
   }
 
-  def attachConnection(channel: SocketChannel, handler: ConnectionHandler): Unit = {
-    attachInternal(channel, handler, true)
+  def attachConnection[T <: ConnectionHandler](channel: SocketChannel, handlerF: WorkEnv => T): T = {
+    val handler = handlerF(environment)
+    attachInternal(channel, handler, true, SelectionKey.OP_READ)
+    handler
   }
 
-  def attachAndConnect(address: InetSocketAddress, handler: ConnectionHandler): Unit = {
+  def attachAndConnect[T <: ConnectionHandler](address: InetSocketAddress, handlerF: WorkEnv => T): T = {
     val channel = SocketChannel.open()
     channel.configureBlocking(false)
     try {
-      attachInternal(channel, handler, channel.connect(address))
+      val handler = handlerF(environment)
+      attachInternal(channel, handler, channel.connect(address), SelectionKey.OP_CONNECT | SelectionKey.OP_READ)
+      handler
     } catch {
       case t: Throwable => {
         error(s"Failed to establish connection to $address: $t", t)
+        ???
       }
     }
   }

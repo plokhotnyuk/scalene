@@ -11,7 +11,9 @@ import scalene.util._
 import HttpParsing._
 
 class HttpVersion(strValue: String) {
-  val bytes: Array[Byte] = strValue.getBytes
+
+  val stringValue = s"HTTP/${strValue}"
+  val bytes: Array[Byte] = stringValue.getBytes
 }
 object HttpVersion {
   val `1.0` = new HttpVersion("1.0")
@@ -30,8 +32,8 @@ class Method(val name: String) {
 }
 
 object Method {
-  val Get   = new Method("get")
-  val Post  = new Method("post")
+  val Get   = new Method("GET")
+  val Post  = new Method("POST")
 }
 
 case class ResponseCode(code: Int, codeMessage: String) {
@@ -43,6 +45,15 @@ object ResponseCode {
   val Ok = ResponseCode(200, "OK")
   val NotFound = ResponseCode(404, "NOT FOUND")
   val Error = ResponseCode(500, "ERROR")
+
+  val codes = Map[Int, ResponseCode](
+    200 -> Ok,
+    404 -> NotFound,
+    500 -> Error
+  )
+
+  def apply(intCode: Int): ResponseCode = codes(intCode)
+
 }
 
 trait Header {
@@ -102,6 +113,8 @@ trait HttpMessage {
   def headers: LinkedList[Header]
   def body: Body
   def version: HttpVersion
+
+  def encodeFirstLine(buf: WriteBuffer): Unit
 }
 
 
@@ -143,4 +156,17 @@ object Body {
   def json(encoded: String) = Body(encoded.getBytes, Some(ContentType.`application/json`))
 }
 
+object HttpClient {
+  def futureClient(config: BasicClientConfig)(implicit pool: Pool) = {
+    new FutureClient(
+      env => client(config, env),
+      config
+    )
+  }
 
+  def client(config: BasicClientConfig, env: WorkEnv) = {
+    new BasicClient[HttpRequest, HttpResponse](f => new HttpClientCodec(f, env.time, new Array(0)), config, env)
+  }
+}
+
+  

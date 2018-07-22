@@ -13,9 +13,6 @@ import scala.util.control.NonFatal
 import microactor._
 import util._
 
-trait ConnectionContext {
-  def time: TimeKeeper
-}
 
 sealed trait WorkerMessage
 
@@ -36,7 +33,7 @@ trait ServerConnectionHandler extends ConnectionHandler
 
 class ServerWorker(
   server: Actor[WorkerToServerMessage],
-  handlerFactory: ConnectionContext => ServerConnectionHandler,
+  handlerFactory: WorkEnv => ServerConnectionHandler,
   timeKeeper: TimeKeeper,
   idleTimeout: Duration,
   context: Context
@@ -51,10 +48,7 @@ class ServerWorker(
 
   def receive(message: WorkerMessage) = message match {
     case ServerToWorkerMessage.NewConnection(channel) => {
-      val context = new ConnectionContext {
-        val time = timeKeeper
-      }
-      eventLoop.attachConnection(channel, handlerFactory(context))
+      eventLoop.attachConnection(channel, handlerFactory)
     }
   }
 

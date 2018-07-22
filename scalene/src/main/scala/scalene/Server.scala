@@ -31,7 +31,7 @@ private[this] case object SelectNow extends ServerMessage with NoWakeMessage
 
 class ServerActor(
   settings: ServerSettings,
-  handlerFactory: ConnectionContext => ServerConnectionHandler,
+  handlerFactory: WorkEnv => ServerConnectionHandler,
   timeKeeper: TimeKeeper,
   context: Context
 ) extends Receiver[ServerMessage](context) with Logging {
@@ -157,7 +157,7 @@ object Server {
 
   type Server = Actor[ExternalServerMessage]
 
-  def start(settings: ServerSettings, factory: ConnectionContext => ServerConnectionHandler, timeKeeper: TimeKeeper)(implicit pool: Pool): Actor[ExternalServerMessage] = {
+  def start(settings: ServerSettings, factory: WorkEnv => ServerConnectionHandler, timeKeeper: TimeKeeper)(implicit pool: Pool): Actor[ExternalServerMessage] = {
     val dispatcher = pool.createDispatcher
     dispatcher.attach(ctx => new ServerActor(settings, factory, timeKeeper, ctx)).specialize[ExternalServerMessage]
   }

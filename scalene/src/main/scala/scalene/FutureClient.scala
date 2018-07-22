@@ -6,7 +6,10 @@ import scala.concurrent.duration._
 import microactor._
 import util._
 
-class FutureClient[Request, Response](factory: Codec.Factory[Response,Request], config: BasicClientConfig)(implicit pool: Pool) {
+class FutureClient[Request, Response](
+  factory: WorkEnv => BasicClient[Request, Response],
+  config: BasicClientConfig
+)(implicit pool: Pool) {
 
   implicit val dispatcher = pool.createDispatcher
   val timeKeeper = new RealTimeKeeper
@@ -15,9 +18,7 @@ class FutureClient[Request, Response](factory: Codec.Factory[Response,Request], 
 
   val eventLoop = new EventLoop(timeKeeper, Duration.Inf, receiver)
 
-  val client = new BasicClient(factory, config)
-
-  eventLoop.attachAndConnect(config.address, client)
+  val client = eventLoop.attachAndConnect[BasicClient[Request,Response]](config.address, factory)
 
   case class AsyncRequest(request: Request, promise: Promise[Response])
 

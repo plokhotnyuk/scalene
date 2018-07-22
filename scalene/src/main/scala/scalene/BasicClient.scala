@@ -1,5 +1,6 @@
 package scalene
 
+import util._
 import java.net.InetSocketAddress
 import java.util.LinkedList
 import scala.concurrent.duration._
@@ -13,9 +14,26 @@ case class BasicClientConfig(
   failFast: Boolean
 )
 
+object BasicClientConfig {
+  def default(host: String, port: Int) = BasicClientConfig(
+    address = new InetSocketAddress(host, port),
+    maxInFlightRequests = 1000,
+    maxPendingRequests = 1000,
+    pendingTimeout = Duration.Inf,
+    inFlightTimeout = Duration.Inf,
+    failFast = false
+  )
+}
+
+
+
 class ClientException(message: String) extends Exception(message)
 
-class BasicClient[Response,Request](factory: Codec.Factory[Response,Request], config: BasicClientConfig) extends ConnectionHandler {
+class BasicClient[Request,Response](
+  factory: Codec.Factory[Response,Request],
+  config: BasicClientConfig,
+  env: WorkEnv
+) extends ConnectionHandler with Logging {
 
   case class PendingRequest(request: Request, promise: PromiseAsync[Response], createdTS: Long)
 
@@ -24,13 +42,16 @@ class BasicClient[Response,Request](factory: Codec.Factory[Response,Request], co
   private val pendingRequests = new LinkedList[PendingRequest]
   private val inFlightRequests = new LinkedList[PendingRequest]
   var _handle: Option[ConnectionHandle] = None
-  private var env: WorkEnv = null
 
   def send(request: Request): Async[Response] = {
     def enqueue(): Async[Response] = {
       if (pendingRequests.size < config.maxPendingRequests) {
         val promise = new PromiseAsync[Response]
+        if (pendingRequests.size == 0) {
+          _handle.foreach{_.requestWrite()}
+        }
         pendingRequests.add(PendingRequest(request, promise, env.time()))
+
         promise
       } else {
         Async.failure(new ClientException("Too many pending requests"))
@@ -56,7 +77,6 @@ class BasicClient[Response,Request](factory: Codec.Factory[Response,Request], co
   }
 
   def onInitialize(e: WorkEnv) {
-    env = e
   }
 
 
@@ -79,6 +99,7 @@ class BasicClient[Response,Request](factory: Codec.Factory[Response,Request], co
 
   def onConnected(handle: ConnectionHandle) {
     _handle = Some(handle)
+    info("client connected")
 
   }
 

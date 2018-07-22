@@ -50,8 +50,9 @@ object HttpServer {
   def start(settings: HttpServerSettings, routes: Seq[BasicRoute]): Server.Server = {
     implicit val pool = new Pool
     val commonHeaders = (settings.commonHeaders :+ Header("Server", settings.serverName)).toArray
-    val factory: ConnectionContext => ServerConnectionHandler = ctx => {
-      new ServiceServer((x: HttpRequest => Unit) => new HttpServerCodec(x, ctx.time, commonHeaders), new BasicRouter(routes))
+    val factory: WorkEnv => ServerConnectionHandler = ctx => {
+      new ServiceServer((x: HttpRequest => Unit) => 
+          new HttpServerCodec(x, ctx.time, commonHeaders), new BasicRouter(routes))
     }
     Server.start(settings.server, factory, new RefreshOnDemandTimeKeeper(new RealTimeKeeper))
   }

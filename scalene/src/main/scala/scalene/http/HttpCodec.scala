@@ -9,6 +9,7 @@ import scalene.util._
 
 object HttpParsing {
   val SPACE_BYTE = ' '.toByte
+  val CODE_START = HttpVersion.`1.1`.stringValue.length + 1
 
   
   val ContentLengthPrefix = "Content-Length: ".getBytes
@@ -108,82 +109,69 @@ trait HttpMessageDecoder { self: FastArrayBuilding =>
 
 }
 
+trait HttpMessageEncoding[T <: HttpMessage] {
+  def commonHeaders: Array[Header]
+  def timeKeeper: TimeKeeper
+
+  final def encode(message: T, buffer: WriteBuffer) {
+    message.encodeFirstLine(buffer)
+    buffer.write(ContentLengthPrefix)
+    buffer.write(message.body.data.length)
+    buffer.write(Newline)
+    if (message.body.contentType.isDefined) {
+      buffer.write(message.body.contentType.get.header.encodedLine(timeKeeper))
+    }
+
+    val h = message.headers.listIterator(0)
+    while (h.hasNext) {
+      buffer.write(h.next.encodedLine(timeKeeper))
+    }
+
+    var i = 0
+    while (i < commonHeaders.length) {
+      buffer.write(commonHeaders(i).encodedLine(timeKeeper))
+      i += 1
+    }
+    buffer.write(Newline)
+    buffer.write(message.body.data)
+  }
+}
+
+class HttpMessageEncoder[T <: HttpMessage](
+  val commonHeaders: Array[Header] = new Array(0), 
+  val timeKeeper: TimeKeeper
+) extends HttpMessageEncoding[T] {
+
+  def encodeString(message: T): String = {
+    val buf = new WriteBufferImpl(100, false)
+    encode(message, buf)
+    buf.data.readString
+  }
+}
+
+
 class HttpServerCodec(
   onDecode: HttpRequest => Unit,
-  timeKeeper: TimeKeeper,
-  commonHeaders: Array[Header]
+  val timeKeeper: TimeKeeper,
+  val commonHeaders: Array[Header]
 ) 
-extends Codec[HttpRequest, HttpResponse] with HttpMessageDecoder with FastArrayBuilding {
+extends Codec[HttpRequest, HttpResponse] with HttpMessageDecoder with FastArrayBuilding with HttpMessageEncoding[HttpResponse] {
 
   def finishDecode(firstLine: Array[Byte], headers: LinkedList[Header], body: Array[Byte]) {
     onDecode(new ParsedHttpRequest(firstLine, headers, Body(body, None)))
   }
 
-  def encode(message: HttpResponse, buffer: WriteBuffer) {
-    buffer.write(message.code.v1FirstLine)
-    buffer.write(ContentLengthPrefix)
-    buffer.write(message.body.data.length)
-    buffer.write(Newline)
-    if (message.body.contentType.isDefined) {
-      buffer.write(message.body.contentType.get.header.encodedLine(timeKeeper))
-    }
-
-    val h = message.headers.listIterator(0)
-    while (h.hasNext) {
-      buffer.write(h.next.encodedLine(timeKeeper))
-    }
-
-    var i = 0
-    while (i < commonHeaders.length) {
-      buffer.write(commonHeaders(i).encodedLine(timeKeeper))
-      i += 1
-    }
-    buffer.write(Newline)
-    buffer.write(message.body.data)
-  }
-
-
 }
 
 class HttpClientCodec(
   onDecode: HttpResponse => Unit,
-  timeKeeper: TimeKeeper,
-  commonHeaders: Array[Header]
+  val timeKeeper: TimeKeeper,
+  val commonHeaders: Array[Header]
 ) 
-extends Codec[HttpResponse, HttpRequest] with HttpMessageDecoder with FastArrayBuilding {
+extends Codec[HttpResponse, HttpRequest] with HttpMessageDecoder with FastArrayBuilding with HttpMessageEncoding[HttpRequest] {
 
   def finishDecode(firstLine: Array[Byte], headers: LinkedList[Header], body: Array[Byte]) {
     onDecode(new ParsedHttpResponse(firstLine, headers, Body(body, None)))
   }
-
-  def encode(message: HttpRequest, buffer: WriteBuffer) {
-    buffer.write(message.method.bytes)
-    buffer.write(SPACE_BYTE)
-    buffer.write(message.urlBytes)
-    buffer.write(SPACE_BYTE)
-    buffer.write(message.version.bytes)
-    buffer.write(Newline)
-    //content length
-    buffer.write(ContentLengthPrefix)
-    buffer.write(message.body.data.length)
-    buffer.write(Newline)
-    if (message.body.contentType.isDefined) {
-      buffer.write(message.body.contentType.get.header.encodedLine(timeKeeper))
-    }
-
-    val h = message.headers.listIterator(0)
-    while (h.hasNext) {
-      buffer.write(h.next.encodedLine(timeKeeper))
-    }
-
-    var i = 0
-    while (i < commonHeaders.length) {
-      buffer.write(commonHeaders(i).encodedLine(timeKeeper))
-      i += 1
-    }
-    buffer.write(Newline)
-    buffer.write(message.body.data)
-  }
-
 
 }

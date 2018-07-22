@@ -13,6 +13,15 @@ trait HttpRequest extends HttpMessage {
 
   def firstLine: Array[Byte]
 
+  def encodeFirstLine(buffer: WriteBuffer) : Unit = {
+    buffer.write(method.bytes)
+    buffer.write(SPACE_BYTE)
+    buffer.write(urlBytes)
+    buffer.write(SPACE_BYTE)
+    buffer.write(version.bytes)
+    buffer.write(Newline)
+  }
+
   
 }
 
@@ -51,10 +60,15 @@ class ParsedHttpRequest(val firstLine: Array[Byte], val headers: LinkedList[Head
   def methodEquals(method: Method): Boolean = ParsingUtils.caseInsensitiveSubstringMatch(firstLine, method.bytes)
 }
 
-case class BasicHttpRequest(method: Method, urlBytes: Array[Byte], headers: LinkedList[Header], body: Body) extends HttpRequest {
-  def url = ???
-  def version = ???
+case class BasicHttpRequest(method: Method, url: String, headers: LinkedList[Header], body: Body) extends HttpRequest {
+  def urlBytes = url.getBytes
+  def version = HttpVersion.`1.1`
 
-  def firstLine = ???
+  def firstLine = s"${method.name} $url ${version.stringValue}\r\n".getBytes
 
+}
+
+object HttpRequest {
+  def noHeaders = new LinkedList[Header]()
+  def get(url: String) = BasicHttpRequest(Method.Get, url, noHeaders, Body.Empty)
 }
