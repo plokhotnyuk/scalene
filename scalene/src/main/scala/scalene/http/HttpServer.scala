@@ -47,8 +47,8 @@ case class HttpServerSettings(
 )
 
 object HttpServer {
-  def start(settings: HttpServerSettings, routes: Seq[BasicRoute]): Server.Server = {
-    implicit val pool = new Pool
+  def start(settings: HttpServerSettings, routes: Seq[BasicRoute])(implicit pool:Pool = new Pool): Server = {
+    //implicit val pool = new Pool
     val commonHeaders = (settings.commonHeaders :+ Header("Server", settings.serverName)).toArray
     val factory: WorkEnv => ServerConnectionHandler = ctx => {
       new ServiceServer((x: HttpRequest => Unit) => 

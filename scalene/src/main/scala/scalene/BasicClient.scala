@@ -68,6 +68,7 @@ class BasicClient[Request,Response](
   }
 
   final def processResponse(response: Response): Unit = {
+    println(s"got response $response")
     val done = inFlightRequests.remove
     done.promise.succeed(response)
 
@@ -100,7 +101,9 @@ class BasicClient[Request,Response](
   def onConnected(handle: ConnectionHandle) {
     _handle = Some(handle)
     info("client connected")
-
+    if (pendingRequests.size > 0) {
+      handle.requestWrite()
+    }
   }
 
   def onDisconnected(reason: DisconnectReason) {

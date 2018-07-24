@@ -37,7 +37,6 @@ trait HttpMessageDecoder { self: FastArrayBuilding =>
   }
 
   final def line(buf: ReadBuffer): Int = {
-    //println("line")
     if (buf.size == 0) { //0 size is the blank newline at the end of the head
       buildContentLength
     } else {
@@ -55,7 +54,6 @@ trait HttpMessageDecoder { self: FastArrayBuilding =>
   final protected def headerContentLength(header: Array[Byte]): Unit = {
     if (buildContentLength == 0 && ParsingUtils.caseInsensitiveSubstringMatch(header, contentLengthKey)) {
       buildContentLength = trimStringToInt(header, contentLengthKey.length + 2)
-      println(s"got content length $buildContentLength")
     }
   }
 
@@ -65,7 +63,6 @@ trait HttpMessageDecoder { self: FastArrayBuilding =>
     var build = 0
     var mult = 1
     while (i >= paddedStartIndex) {
-      println(line(i).toChar)
       if (line(i) != ' '.toByte) {
         build += (line(i) - 48) * mult
         mult *= 10

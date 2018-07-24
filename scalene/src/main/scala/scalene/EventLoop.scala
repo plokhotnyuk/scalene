@@ -147,6 +147,7 @@ class EventLoop(
           con.finishConnect()
         } catch {
           case t: Throwable => {
+            error(s"Error while connecting, $t")
             removeConnection(con, DisconnectReason.ClientConnectFailed(t))
             key.cancel()
           }

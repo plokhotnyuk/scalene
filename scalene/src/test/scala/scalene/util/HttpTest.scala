@@ -17,6 +17,7 @@ class HttpSpec extends AsyncFlatSpec with Matchers with BeforeAndAfterAll{
 
   override def afterAll() {
     pool.shutdown()
+    pool.join
   }
 
   val settings = HttpServerSettings(
@@ -31,14 +32,14 @@ class HttpSpec extends AsyncFlatSpec with Matchers with BeforeAndAfterAll{
     )
   )
 
-  it should "receive a request" in {
+  it should "receive a request" taggedAs(org.scalatest.Tag("test")) in {
     implicit val p = pool
     val server = HttpServer.start(settings, Seq(
       Get url "/test"  to {
-        println("got the request")
         Body.plain("foo").ok
       }
     ))
+    server.blockUntilReady(1000)
     val client = HttpClient.futureClient(BasicClientConfig.default("localhost", 9876))
     client.send(HttpRequest.get("/test")).map{res =>
       assert(res.code == ResponseCode.Ok)
