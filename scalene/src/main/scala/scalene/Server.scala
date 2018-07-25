@@ -109,6 +109,9 @@ class ServerActor(
     super.onStop()
     info("Shutting down Server")
     state.set(ServerState.Terminated)
+    selector.close()
+    serverSocketChannel.close()
+
   }
 
   def startServer() = {
@@ -181,7 +184,7 @@ class Server(stateReader: AtomicReference[ServerState], actor: Actor[ExternalSer
   def blockUntilReady(timeoutMillis: Long): Unit = {
     val end = System.currentTimeMillis + timeoutMillis
     while (state != ServerState.Running && System.currentTimeMillis < end) {
-      Thread.sleep(50)
+      Thread.sleep(10)
     }
     if (state != ServerState.Running) {
       throw new Exception("Timed out waiting for server to start")
