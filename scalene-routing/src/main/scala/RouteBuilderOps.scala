@@ -30,15 +30,15 @@ trait RouteBuilderOps[I <: Clonable[I], FinalOut] { self: RouteBuilding[I,FinalO
      * Combine two things that can become cell components, which would be either
      * a parser or a filter
      */
-    implicit def comCom[A, B , CA[_,_] , CB[_,_], O, FOut](
+    implicit def comCom[A, B , CA , CB, O, FOut](
       implicit 
       nilFuse: Fuse.Aux[Unit, A, O],
       fuse: Fuse.Aux[O,B, FOut],
-      asA: AsCellComponent[CA],
-      asB: AsCellComponent[CB]
-    ) = new RouteBuilderCombiner[CA[I,A], CB[I,B]] {
+      asA: AsCellComponent[I, A, CA],
+      asB: AsCellComponent[I, B, CB]
+    ) = new RouteBuilderCombiner[CA, CB] {
       type Out = RouteBuilder[FOut]
-      def apply(a: CA[I,A], b: CB[I,B]): RouteBuilder[FOut] = {
+      def apply(a: CA, b: CB): RouteBuilder[FOut] = {
         val f: RouteBuilder[O] = RouteBuilder.cons(RouteBuilder.RNil, asA(a))
         RouteBuilder.cons(f, asB(b))
       }
@@ -47,12 +47,12 @@ trait RouteBuilderOps[I <: Clonable[I], FinalOut] { self: RouteBuilding[I,FinalO
     /**
      * Combine a buider with a thing that can become a cell component
      */
-    implicit def builderCom[A , B , C[_,_], FOut](
+    implicit def builderCom[A , B , CA, FOut](
       implicit fuse: Fuse.Aux[A,B, FOut],
-      as: AsCellComponent[C]
-    ) = new RouteBuilderCombiner[RouteBuilder[A], C[I,B]] {
+      as: AsCellComponent[I, B, CA]
+    ) = new RouteBuilderCombiner[RouteBuilder[A], CA] {
       type Out = RouteBuilder[FOut]
-      def apply(a: RouteBuilder[A], b: C[I,B]): RouteBuilder[FOut] = RouteBuilder.cons(a, as(b))
+      def apply(a: RouteBuilder[A], b: CA): RouteBuilder[FOut] = RouteBuilder.cons(a, as(b))
     }
 
   }

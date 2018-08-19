@@ -75,18 +75,22 @@ case class CellFilter[I,O](filter: Filter[I,O]) extends CellComponent[I,O] {
 //used when making phantom clones of QLists for dealing with subroute trees
 case class CellPhantom[I,O](cell: Cell[O]) extends CellComponent[I,O]
 
-trait AsCellComponent[P[_,_]] {
-  def apply[I,O](p: P[I,O]): CellComponent[I,O]
+trait AsCellComponent[I,O,P] {
+  //type Out
+  def apply(p: P): CellComponent[I,O]
 }
 
 object AsCellComponent {
 
-  implicit def liftParser = new AsCellComponent[Parser] {
-    def apply[I,O](parser: Parser[I,O]): CellComponent[I,O] = CellParser(parser)
+  implicit def liftParser[I,O] = new AsCellComponent[I,O, Parser[I,O]] {
+    //type
+    def apply(parser: Parser[I,O]): CellComponent[I,O] = CellParser(parser)
   }
 
+  /*k
   implicit def liftFilter = new AsCellComponent[Filter] {
     def apply[I,O](filter: Filter[I,O]) = CellFilter(filter)
   }
+  */
 }
 

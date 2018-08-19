@@ -88,6 +88,10 @@ trait LowPriorityPathParsing { self: RouteBuilding[RequestContext, HttpResponse]
     def apply(builder: RouteBuilder[L], a: A): Out = comb(builder, asA(a))
   }
 
+  implicit def liftExactPathMatch = new AsCellComponent[RequestContext, Unit, ExactMatchPath] {
+    def apply(e: ExactMatchPath) = CellParser(e)
+  }
+
 }
 
 //mixed into package object
